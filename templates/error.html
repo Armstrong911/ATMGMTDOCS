@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} Error — DocHost{% endblock %}
+{% block content %}
+<div class="card empty" style="margin-top:48px;">
+  <div style="font-size:3rem; font-weight:700; color:var(--muted);">{{ code }}</div>
+  <p>{{ message }}</p>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-outline" style="margin-top:16px;">← Go to Dashboard</a>
+</div>
+{% endblock %}

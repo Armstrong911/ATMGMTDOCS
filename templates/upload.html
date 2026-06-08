@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Upload — Hutton Client Portal{% endblock %}
+{% block content %}
+
+<div style="max-width: 560px; margin: 0 auto;">
+  <div class="page-header">
+    <h1>Upload PDF</h1>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline">← Back</a>
+  </div>
+
+  <div class="card">
+    <form method="post" enctype="multipart/form-data">
+      <div class="form-group">
+        <label for="title">Document Title *</label>
+        <input type="text" id="title" name="title" required placeholder="e.g. AGM Minutes 2024" />
+      </div>
+
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea id="description" name="description" placeholder="Optional short description…"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="building_id">Building *</label>
+        <select id="building_id" name="building_id" required>
+          <option value="">— Select a building —</option>
+          {% for b in buildings %}
+          <option value="{{ b.id }}">{{ b.name }}{% if b.address %} — {{ b.address }}{% endif %}</option>
+          {% endfor %}
+        </select>
+        {% if not buildings %}
+        <p style="font-size:.8rem; color:var(--danger); margin-top:6px;">
+          No buildings set up yet. <a href="{{ url_for('admin_new_building') }}">Add one first.</a>
+        </p>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label for="file">PDF File *</label>
+        <input type="file" id="file" name="file" accept=".pdf" required
+               style="padding:6px; cursor:pointer;" />
+      </div>
+
+      <div class="form-group">
+        <label for="min_role">Who can access this document?</label>
+        <select id="min_role" name="min_role">
+          <option value="viewer">Building members (Viewer+)</option>
+          {% if user.role in ['editor', 'admin'] %}
+          <option value="editor">Staff only (Editor+)</option>
+          {% endif %}
+          {% if user.role == 'admin' %}
+          <option value="admin">Admins only</option>
+          {% endif %}
+        </select>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Upload Document</button>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

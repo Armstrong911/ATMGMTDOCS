@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Documents — Hutton Client Portal{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>
+    {% if selected_building %}{{ selected_building.name }}
+    {% elif user.role in ['admin', 'editor'] %}All Buildings
+    {% else %}My Documents
+    {% endif %}
+  </h1>
+  {% if user.role in ['admin', 'editor'] %}
+  <a href="{{ url_for('upload') }}" class="btn btn-primary">+ Upload PDF</a>
+  {% endif %}
+</div>
+
+{% if user.role in ['admin', 'editor'] and buildings %}
+<div style="margin-bottom:20px; display:flex; gap:8px; flex-wrap:wrap;">
+  <a href="{{ url_for('dashboard') }}"
+     class="btn btn-sm {% if not selected_building %}btn-primary{% else %}btn-outline{% endif %}">
+    All Buildings
+  </a>
+  {% for b in buildings %}
+  <a href="{{ url_for('dashboard', building=b.id) }}"
+     class="btn btn-sm {% if selected_building and selected_building.id == b.id %}btn-primary{% else %}btn-outline{% endif %}">
+    {{ b.name }}
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if user.role not in ['admin', 'editor'] and buildings %}
+<div style="margin-bottom:16px;">
+  {% for b in buildings %}
+  <span style="font-size:.85rem; color:var(--muted);">{{ b.name }}{% if not loop.last %} &nbsp;·&nbsp; {% endif %}</span>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if notices %}
+<div style="margin-bottom:28px;">
+  <h2 style="font-size:1rem; font-weight:700; margin-bottom:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);">Work Notices</h2>
+  {% for n in notices %}
+  <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
+    <div>
+      <div style="font-weight:600;">{{ n.title }} — <span style="font-weight:400;">{{ n.building.name }}</span></div>
+      {% if n.work_date %}<div style="font-size:.85rem; margin-top:3px;">📅 {{ n.work_date }}</div>{% endif %}
+      {% if n.description %}<div style="font-size:.85rem; color:var(--muted); margin-top:3px;">{{ n.description }}</div>{% endif %}
+    </div>
+    <div style="font-size:.78rem; color:var(--muted); white-space:nowrap; text-align:right;">
+      {{ n.posted_at.strftime('%b %d, %Y') }}<br>
+      <span style="font-size:.72rem;">Expires {{ n.expires_at.strftime('%b %d') }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if documents %}
+<div class="doc-grid">
+  {% for doc in documents %}
+  <div class="doc-card">
+    <div class="doc-card-title">{{ doc.title }}</div>
+    {% if doc.description %}
+    <div class="doc-card-desc">{{ doc.description }}</div>
+    {% endif %}
+    <div class="doc-card-meta">
+      {% if doc.building %}
+        <span style="font-weight:500;">{{ doc.building.name }}</span> &nbsp;·&nbsp;
+      {% endif %}
+      {{ doc.uploaded_at.strftime('%b %d, %Y') }}
+    </div>
+    <div class="doc-card-actions">
+      <a href="{{ url_for('view_doc', doc_id=doc.id) }}" class="btn btn-outline btn-sm">View</a>
+      <a href="{{ url_for('download_doc', doc_id=doc.id) }}" class="btn btn-outline btn-sm">Download</a>
+      {% if user.role == 'admin' or (user.role == 'editor' and doc.uploaded_by == user.id) %}
+      <form method="post" action="{{ url_for('delete_doc', doc_id=doc.id) }}"
+            onsubmit="return confirm('Delete this document?');" style="display:inline;">
+        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card empty">
+  <div style="font-size:2.5rem;">📂</div>
+  <p>No documents here yet.
+  {% if user.role in ['admin', 'editor'] %}
+  <a href="{{ url_for('upload') }}">Upload the first one.</a>
+  {% endif %}
+  </p>
+</div>
+{% endif %}
+
+{% endblock %}

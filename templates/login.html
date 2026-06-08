@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Log In — Hutton Client Portal{% endblock %}
+{% block content %}
+<div style="max-width: 400px; margin: 80px auto;">
+  <div class="card">
+    <div style="text-align:center; margin-bottom:24px;">
+      <img src="https://huttonpropertymanagement.com/wp-content/uploads/Hutton-Word-Smaller.png"
+           alt="Hutton Condominium Services"
+           style="max-height:48px; max-width:200px;"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+      <h1 style="font-size:1.4rem; display:none;">Hutton Condominium Services</h1>
+      <p style="font-size:0.8rem; color:#888; margin-top:8px; letter-spacing:.05em; text-transform:uppercase;">Client Portal</p>
+    </div>
+    <form method="post">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required autofocus />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required />
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Log in</button>
+    </form>
+    <p style="font-size:0.75rem; color:#999; margin-top:18px; line-height:1.5; text-align:center;">
+      Your email address is used to notify you when any work is being done in your building
+      (including window cleaning, roof inspections, elevator servicing, etc.).
+      It will not be used for any other purpose.
+    </p>
+  </div>
+</div>
+{% endblock %}
