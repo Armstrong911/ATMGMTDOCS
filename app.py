@@ -6,7 +6,7 @@ from functools import wraps
 from flask import (Flask, render_template, request, redirect, url_for,
                    flash, send_from_directory, abort, session)
 from flask_sqlalchemy import SQLAlchemy
-from flask_mail import Mail, Message
+import resend
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
@@ -24,8 +24,9 @@ app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB
 
 # Mail config — set these as Railway environment variables
 app.config['MAIL_SERVER']   = os.environ.get('MAIL_SERVER',   'smtp.gmail.com')
-app.config['MAIL_PORT']     = int(os.environ.get('MAIL_PORT', 587))
-app.config['MAIL_USE_TLS']  = os.environ.get('MAIL_USE_TLS',  'true').lower() == 'true'
+app.config['MAIL_PORT']     = int(os.environ.get('MAIL_PORT', 465))
+app.config['MAIL_USE_TLS']  = os.environ.get('MAIL_USE_TLS',  'false').lower() == 'true'
+app.config['MAIL_USE_SSL']  = os.environ.get('MAIL_USE_SSL',  'true').lower()  == 'true'
 app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
 app.config['MAIL_DEFAULT_SENDER'] = os.environ.get(
@@ -38,8 +39,9 @@ NOTICE_EXPIRY_DAYS = 45
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-db   = SQLAlchemy(app)
-mail = Mail(app)
+db = SQLAlchemy(app)
+resend.api_key = os.environ.get('RESEND_API_KEY', '')
+MAIL_FROM = os.environ.get('MAIL_FROM', 'Hutton Portal <onboarding@resend.dev>')
 
 # ---------------------------------------------------------------------------
 # Models
@@ -153,7 +155,7 @@ def purge_expired_notices():
 
 def send_notice_emails(notice, building):
     """Email all viewer members of the building about a new contractor notice."""
-    if not app.config.get('MAIL_USERNAME'):
+    if not resend.api_key:
         return  # email not configured — skip silently
     recipients = [u.email for u in building.members if u.role == 'viewer' and u.email]
     if not recipients:
@@ -177,8 +179,13 @@ This email was sent because you are a registered owner at {building.name}.
 Your email address is used solely to notify you of work being performed in your building.
 """
     try:
-        msg = Message(subject=subject, recipients=recipients, body=body)
-        mail.send(msg)
+        for recipient in recipients:
+            resend.Emails.send({
+                "from": MAIL_FROM,
+                "to": recipient,
+                "subject": subject,
+                "text": body,
+            })
     except Exception as e:
         app.logger.warning(f"Email send failed: {e}")
 
