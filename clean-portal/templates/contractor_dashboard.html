@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Post a Notice — Hutton Client Portal{% endblock %}
+{% block content %}
+
+<div style="max-width:600px; margin:0 auto;">
+
+  <div class="page-header">
+    <h1>Post a Work Notice</h1>
+  </div>
+
+  <div class="card" style="margin-bottom:24px;">
+    <form method="post">
+      <div class="form-group">
+        <label for="building_id">Building *</label>
+        <select id="building_id" name="building_id" required>
+          <option value="">— Select a building —</option>
+          {% for b in buildings %}
+          <option value="{{ b.id }}">{{ b.name }}{% if b.address %} — {{ b.address }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="title">Type of Work *</label>
+        <input type="text" id="title" name="title" required
+               placeholder="e.g. Window Cleaning, Roof Inspection, Elevator Servicing" />
+      </div>
+
+      <div class="form-group">
+        <label for="work_date">Date / Time of Work</label>
+        <input type="text" id="work_date" name="work_date"
+               placeholder="e.g. Monday June 10, 8am–4pm" />
+      </div>
+
+      <div class="form-group">
+        <label for="description">Additional Details</label>
+        <textarea id="description" name="description"
+                  placeholder="Any access requirements, areas affected, safety notes, etc."></textarea>
+      </div>
+
+      <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:var(--radius); padding:12px 14px; margin-bottom:18px; font-size:.85rem; color:#92400e;">
+        Posting this notice will immediately send an email notification to all registered owners in the selected building.
+      </div>
+
+      <button type="submit" class="btn btn-primary">Post Notice &amp; Notify Owners</button>
+    </form>
+  </div>
+
+  {% if notices %}
+  <h2 style="font-size:1.1rem; font-weight:700; margin-bottom:14px;">Recent Notices</h2>
+  <div class="card" style="padding:0;">
+    <table>
+      <thead>
+        <tr>
+          <th>Notice</th>
+          <th>Building</th>
+          <th>Date of Work</th>
+          <th>Posted</th>
+          <th>Expires</th>
+          {% if user.role == 'admin' %}<th></th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for n in notices %}
+        <tr>
+          <td>
+            <div style="font-weight:500;">{{ n.title }}</div>
+            {% if n.description %}<div style="font-size:.8rem; color:var(--muted);">{{ n.description[:80] }}{% if n.description|length > 80 %}…{% endif %}</div>{% endif %}
+          </td>
+          <td style="font-size:.875rem;">{{ n.building.name }}</td>
+          <td style="font-size:.875rem; color:var(--muted);">{{ n.work_date or '—' }}</td>
+          <td style="font-size:.8rem; color:var(--muted);">{{ n.posted_at.strftime('%b %d, %Y') }}</td>
+          <td style="font-size:.8rem; color:var(--muted);">{{ n.expires_at.strftime('%b %d, %Y') }}</td>
+          {% if user.role == 'admin' %}
+          <td>
+            <form method="post" action="{{ url_for('delete_notice', notice_id=n.id) }}"
+                  onsubmit="return confirm('Delete this notice?');" style="display:inline;">
+              <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card empty">
+    <div style="font-size:2rem;">📋</div>
+    <p>No notices posted yet.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Buildings — Hutton Client Portal{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Buildings</h1>
+  <a href="{{ url_for('admin_new_building') }}" class="btn btn-primary">+ New Building</a>
+</div>
+
+<div class="card" style="padding:0;">
+  <table>
+    <thead>
+      <tr>
+        <th>Building Name</th>
+        <th>Address</th>
+        <th>Docs</th>
+        <th>Members</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in buildings %}
+      <tr>
+        <td style="font-weight:500;">{{ b.name }}</td>
+        <td style="color:var(--muted); font-size:.875rem;">{{ b.address or '—' }}</td>
+        <td style="color:var(--muted);">{{ b.documents|length }}</td>
+        <td style="color:var(--muted);">{{ b.members|length }}</td>
+        <td style="text-align:right;">
+          <a href="{{ url_for('admin_edit_building', building_id=b.id) }}" class="btn btn-outline btn-sm">Edit</a>
+          <form method="post" action="{{ url_for('admin_delete_building', building_id=b.id) }}"
+                onsubmit="return confirm('Delete {{ b.name }}? This cannot be undone.');" style="display:inline;">
+            <button type="submit" class="btn btn-danger btn-sm"
+                    {% if b.documents %}disabled title="Remove documents first"{% endif %}>Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" style="text-align:center; color:var(--muted); padding:32px;">
+        No buildings yet. <a href="{{ url_for('admin_new_building') }}">Add your first building.</a>
+      </td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

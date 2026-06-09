@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Hutton Client Portal{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f4f4f4;
+      --surface:   #ffffff;
+      --border:    #d8d8d8;
+      --primary:   #111111;
+      --primary-h: #333333;
+      --danger:    #dc2626;
+      --success:   #16a34a;
+      --warning:   #d97706;
+      --text:      #111111;
+      --muted:     #666666;
+      --nav-bg:    #111111;
+      --nav-text:  #ffffff;
+      --radius:    4px;
+    }
+
+    body {
+      font-family: "PT Serif", Georgia, serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Nav */
+    nav {
+      background: var(--nav-bg);
+      border-bottom: none;
+      padding: 0 32px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    .nav-brand img { height: 32px; }
+    .nav-brand-text {
+      color: var(--nav-text);
+      font-size: 0.8rem;
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-left: 1px solid #444;
+      padding-left: 12px;
+      opacity: 0.85;
+    }
+    .nav-links { display: flex; gap: 4px; align-items: center; margin-left: auto; }
+    .nav-links a {
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      text-decoration: none;
+      color: rgba(255,255,255,0.7);
+      font-size: 0.875rem;
+      transition: background 0.15s, color 0.15s;
+    }
+    .nav-links a:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .badge {
+      font-size: 0.7rem;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .03em;
+    }
+    .badge-admin   { background: rgba(255,255,255,0.15); color: #fff; }
+    .badge-editor  { background: rgba(255,255,255,0.15); color: #fff; }
+    .badge-viewer  { background: rgba(255,255,255,0.15); color: #fff; }
+
+    /* Container */
+    .container { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: var(--radius);
+      font-size: 0.875rem; font-weight: 500;
+      cursor: pointer; text-decoration: none;
+      border: none; transition: background 0.15s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-h); }
+    .btn-danger  { background: var(--danger); color: #fff; }
+    .btn-danger:hover  { background: #b91c1c; }
+    .btn-outline {
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-outline:hover { background: var(--bg); }
+    .btn-sm { padding: 5px 10px; font-size: 0.8rem; }
+
+    /* Forms */
+    .form-group { margin-bottom: 18px; }
+    label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 6px; }
+    input[type="text"], input[type="email"], input[type="password"],
+    select, textarea {
+      width: 100%; padding: 9px 12px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      font-size: 0.95rem; color: var(--text);
+      background: var(--surface);
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(17,17,17,.12);
+    }
+    textarea { resize: vertical; min-height: 80px; }
+
+    /* Alerts */
+    .alert {
+      padding: 12px 16px; border-radius: var(--radius);
+      margin-bottom: 20px; font-size: 0.9rem;
+    }
+    .alert-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: var(--success); }
+    .alert-danger  { background: #fef2f2; border: 1px solid #fecaca; color: var(--danger); }
+    .alert-warning { background: #fffbeb; border: 1px solid #fde68a; color: var(--warning); }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { text-align: left; padding: 10px 12px; font-weight: 600; border-bottom: 2px solid var(--border); }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg); }
+
+    /* Page header */
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .page-header h1 { font-size: 1.5rem; font-weight: 700; }
+
+    /* Doc grid */
+    .doc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .doc-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .doc-card-title { font-weight: 600; font-size: 1rem; }
+    .doc-card-desc  { font-size: 0.85rem; color: var(--muted); flex: 1; }
+    .doc-card-meta  { font-size: 0.78rem; color: var(--muted); }
+    .doc-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* Min-role badge */
+    .badge-viewer-req  { background: #f0fdf4; color: #15803d; }
+    .badge-editor-req  { background: #fff7ed; color: #c2410c; }
+    .badge-admin-req   { background: #fdf4ff; color: #7e22ce; }
+
+    /* Empty state */
+    .empty { text-align: center; padding: 48px 0; color: var(--muted); }
+    .empty p { margin-top: 8px; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+
+{% if user %}
+<nav>
+  <a href="{{ url_for('dashboard') }}" class="nav-brand">
+    <img src="https://huttonpropertymanagement.com/wp-content/uploads/Hutton-Word-Smaller.png"
+         alt="Hutton Condominium Services"
+         onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" />
+    <span style="color:#fff; font-weight:700; font-size:1.1rem; display:none;">Hutton</span>
+    <span class="nav-brand-text">Client Portal</span>
+  </a>
+  {% if user.role in ['admin', 'editor'] %}
+  <a href="{{ url_for('upload') }}" style="color:rgba(255,255,255,0.75); font-weight:500; text-decoration:none; font-size:.875rem; margin-left:8px;">+ Upload</a>
+  {% endif %}
+  <div class="nav-links">
+    {% if user.role in ['admin', 'editor'] %}
+    <a href="{{ url_for('contractor_dashboard') }}">Notices</a>
+    {% endif %}
+    {% if user.role == 'admin' %}
+    <a href="{{ url_for('admin_buildings') }}">Buildings</a>
+    <a href="{{ url_for('admin_users') }}">Users</a>
+    {% endif %}
+    <span class="badge badge-{{ user.role }}">{{ user.role }}</span>
+    <span style="font-size:.85rem; color:rgba(255,255,255,0.6);">{{ user.name }}</span>
+    <a href="{{ url_for('logout') }}">Log out</a>
+  </div>
+</nav>
+{% endif %}
+
+<div class="container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</div>
+
+</body>
+</html>

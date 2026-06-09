@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Edit User — Hutton Client Portal{% endblock %}
+{% block content %}
+
+<div style="max-width:520px; margin:0 auto;">
+  <div class="page-header">
+    <h1>Edit User</h1>
+    <a href="{{ url_for('admin_users') }}" class="btn btn-outline">← Back</a>
+  </div>
+
+  <div class="card">
+    <form method="post">
+      <div class="form-group">
+        <label for="name">Full Name</label>
+        <input type="text" id="name" name="name" value="{{ target.name }}" required />
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" value="{{ target.email }}" required />
+      </div>
+      <div class="form-group">
+        <label for="password">New Password <span style="color:var(--muted); font-weight:400;">(leave blank to keep current)</span></label>
+        <input type="password" id="password" name="password" />
+      </div>
+      <div class="form-group">
+        <label for="role">Role</label>
+        <select id="role" name="role" onchange="toggleBuildings(this.value)">
+          <option value="viewer"     {% if target.role == 'viewer'     %}selected{% endif %}>Viewer — strata owner/resident</option>
+          <option value="contractor" {% if target.role == 'contractor' %}selected{% endif %}>Contractor — can post work notices only</option>
+          <option value="editor"     {% if target.role == 'editor'     %}selected{% endif %}>Editor — can upload &amp; view all</option>
+          <option value="admin"      {% if target.role == 'admin'      %}selected{% endif %}>Admin — full access</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="buildings-section">
+        <label>Building Access <span style="font-weight:400; color:var(--muted);">(select all that apply)</span></label>
+        {% if buildings %}
+        <div style="border:1px solid var(--border); border-radius:var(--radius); max-height:220px; overflow-y:auto; padding:8px 12px;">
+          {% for b in buildings %}
+          <label style="display:flex; align-items:center; gap:8px; padding:5px 0; font-weight:400; cursor:pointer;">
+            <input type="checkbox" name="building_ids" value="{{ b.id }}"
+              {% if b in target.buildings %}checked{% endif %} />
+            <span>{{ b.name }}{% if b.address %} <span style="color:var(--muted); font-size:.85rem;">— {{ b.address }}</span>{% endif %}</span>
+          </label>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="font-size:.85rem; color:var(--muted);">No buildings set up. <a href="{{ url_for('admin_new_building') }}">Add buildings first.</a></p>
+        {% endif %}
+      </div>
+
+      <button type="submit" class="btn btn-primary">Save Changes</button>
+    </form>
+  </div>
+</div>
+
+<script>
+function toggleBuildings(role) {
+  document.getElementById('buildings-section').style.display =
+    (role === 'viewer' || role === 'contractor') ? 'block' : 'none';
+}
+toggleBuildings(document.getElementById('role').value);
+</script>
+
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Users — Hutton Client Portal{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Users</h1>
+  <a href="{{ url_for('admin_new_user') }}" class="btn btn-primary">+ New User</a>
+</div>
+
+<div class="card" style="padding:0;">
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Joined</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.name }}</td>
+        <td style="color:var(--muted);">{{ u.email }}</td>
+        <td><span class="badge badge-{{ u.role }}">{{ u.role }}</span></td>
+        <td style="color:var(--muted); font-size:.85rem;">{{ u.created_at.strftime('%b %d, %Y') }}</td>
+        <td style="text-align:right;">
+          <a href="{{ url_for('admin_edit_user', user_id=u.id) }}" class="btn btn-outline btn-sm">Edit</a>
+          {% if u.id != user.id %}
+          <form method="post" action="{{ url_for('admin_delete_user', user_id=u.id) }}"
+                onsubmit="return confirm('Delete {{ u.name }}?');" style="display:inline;">
+            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
