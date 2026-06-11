@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Legal Information Request (Form F/B) — Hutton{% endblock %}
+{% block content %}
+<h1>Legal information request</h1>
+<p class="subtitle">Request Form F and/or Form B for a change of ownership or legal transaction.</p>
+<div class="card"><form method="post">
+  <div class="form-row">
+    <div class="form-group"><label>Notary / Lawyer name</label><input type="text" name="name" required /></div>
+    <div class="form-group"><label>Firm name</label><input type="text" name="firm" required /></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Email address</label><input type="email" name="email" required /></div>
+    <div class="form-group"><label>Phone number</label><input type="tel" name="phone" required /></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Strata lot / Unit number</label><input type="text" name="unit" required /></div>
+    <div class="form-group"><label>Strata plan number</label><input type="text" name="strata_plan" /></div>
+  </div>
+  <div class="form-group"><label>Building / Strata corporation</label><input type="text" name="building" required /></div>
+  <div class="form-group">
+    <label>Documents required</label>
+    <select name="documents">
+      <option value="form_f_b">Form F and Form B</option>
+      <option value="form_f">Form F only</option>
+      <option value="form_b">Form B only</option>
+    </select>
+  </div>
+  <div class="form-group"><label>Completion date</label><input type="date" name="completion_date" required /></div>
+  <div class="form-group"><label>Seller name</label><input type="text" name="seller_name" required /></div>
+  <div class="form-group"><label>Buyer name</label><input type="text" name="buyer_name" /></div>
+  <div class="form-group"><label>Additional notes</label><textarea name="notes" placeholder="Optional"></textarea></div>
+  <button type="submit" class="btn-submit">Submit request</button>
+</form></div>
+{% endblock %}

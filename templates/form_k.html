@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Form K — Hutton{% endblock %}
+{% block content %}
+<h1>Form K</h1>
+<p class="subtitle">Tenant notification — required when renting out your strata unit.</p>
+<p style="font-size:.8rem; color:#8e8e93; margin-bottom:32px; border-left:2px solid #d1d1d6; padding-left:12px;">As required under the Strata Property Act, this form notifies the strata corporation that you are renting your unit and provides tenant contact information.</p>
+<div class="card"><form method="post">
+  <div class="form-row">
+    <div class="form-group"><label>Owner name</label><input type="text" name="owner_name" required /></div>
+    <div class="form-group"><label>Unit number</label><input type="text" name="unit" required /></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Owner email</label><input type="email" name="owner_email" required /></div>
+    <div class="form-group"><label>Owner phone</label><input type="tel" name="owner_phone" required /></div>
+  </div>
+  <div class="form-group"><label>Building / Strata corporation</label><input type="text" name="building" required /></div>
+  <div class="form-group"><label>Owner mailing address (while renting out)</label><input type="text" name="owner_address" required /></div>
+  <hr class="divider" />
+  <div class="form-row">
+    <div class="form-group"><label>Tenant name</label><input type="text" name="tenant_name" required /></div>
+    <div class="form-group"><label>Tenant phone</label><input type="tel" name="tenant_phone" required /></div>
+  </div>
+  <div class="form-group"><label>Tenant email</label><input type="email" name="tenant_email" /></div>
+  <div class="form-row">
+    <div class="form-group"><label>Tenancy start date</label><input type="date" name="start_date" required /></div>
+    <div class="form-group"><label>Tenancy end date (if fixed term)</label><input type="date" name="end_date" /></div>
+  </div>
+  <button type="submit" class="btn-submit">Submit Form K</button>
+</form></div>
+{% endblock %}

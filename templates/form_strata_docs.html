@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Strata Documents Request — Hutton{% endblock %}
+{% block content %}
+<h1>Strata documents request</h1>
+<p class="subtitle">Request general strata corporation documents (excluding Form F and Form B).</p>
+<div class="card"><form method="post">
+  <div class="form-row">
+    <div class="form-group"><label>Your name</label><input type="text" name="name" required /></div>
+    <div class="form-group"><label>Unit number</label><input type="text" name="unit" required /></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Email address</label><input type="email" name="email" required /></div>
+    <div class="form-group"><label>Phone number</label><input type="tel" name="phone" /></div>
+  </div>
+  <div class="form-group"><label>Building / Strata corporation</label><input type="text" name="building" required /></div>
+  <div class="form-group"><label>Documents requested</label><textarea name="documents" required placeholder="List the specific documents you are requesting (e.g. AGM minutes 2023–2024, current bylaws, depreciation report)"></textarea></div>
+  <div class="form-group"><label>Reason for request (optional)</label><input type="text" name="reason" /></div>
+  <button type="submit" class="btn-submit">Submit request</button>
+</form></div>
+{% endblock %}

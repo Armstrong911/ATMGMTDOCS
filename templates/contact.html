@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Contact — Hutton{% endblock %}
+{% block content %}
+<h1>Contact</h1>
+<p class="subtitle">We're here Monday through Thursday, 8:30 am to 4:30 pm.</p>
+
+<div class="contact-grid">
+  <div class="contact-block">
+    <div class="clabel">Phone</div>
+    <div class="cvalue"><a href="tel:2505985148">(250) 598-5148</a></div>
+  </div>
+  <div class="contact-block">
+    <div class="clabel">Email</div>
+    <div class="cvalue"><a href="mailto:admin@huttonstrata.com">admin@huttonstrata.com</a></div>
+  </div>
+  <div class="contact-block">
+    <div class="clabel">Address</div>
+    <div class="cvalue"><a href="https://www.google.com/maps/place/Hutton+Condominium+Services+Ltd/@48.4555046,-123.4411971,15z" target="_blank">212-284 Helmcken Rd.<br>Victoria, B.C. V9B 1T2</a></div>
+  </div>
+  <div class="contact-block">
+    <div class="clabel">Hours</div>
+    <div class="cvalue">Mon – Thu &nbsp;8:30 am – 4:30 pm<br><span style="color:#8e8e93;">Friday closed</span></div>
+  </div>
+</div>
+
+{% if sent %}
+<div class="flash-success">Your message has been sent. We'll be in touch shortly.</div>
+{% else %}
+<div class="card">
+  <p style="font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; color:#8e8e93; margin-bottom:24px;">Send a message</p>
+  <form method="post">
+    <div class="form-grid">
+      <div class="form-group"><label>Your name</label><input type="text" name="name" required /></div>
+      <div class="form-group"><label>Email address</label><input type="email" name="email" required /></div>
+    </div>
+    <div class="form-group"><label>Subject</label><input type="text" name="subject" required /></div>
+    <div class="form-group"><label>Message</label><textarea name="message" required></textarea></div>
+    <button type="submit" class="btn-submit">Send message</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

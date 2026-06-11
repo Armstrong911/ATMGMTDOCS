@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Lender / Owner Information Request (Form B) — Hutton{% endblock %}
+{% block content %}
+<h1>Lender / Owner information request</h1>
+<p class="subtitle">Request Form B — Information Certificate for mortgage or ownership purposes.</p>
+<div class="card"><form method="post">
+  <div class="form-row">
+    <div class="form-group"><label>Requestor name</label><input type="text" name="name" required /></div>
+    <div class="form-group"><label>Company / Institution (if applicable)</label><input type="text" name="company" /></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Email address</label><input type="email" name="email" required /></div>
+    <div class="form-group"><label>Phone number</label><input type="tel" name="phone" required /></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Strata lot / Unit number</label><input type="text" name="unit" required /></div>
+    <div class="form-group"><label>Strata plan number</label><input type="text" name="strata_plan" /></div>
+  </div>
+  <div class="form-group"><label>Building / Strata corporation</label><input type="text" name="building" required /></div>
+  <div class="form-group"><label>Owner name on title</label><input type="text" name="owner_name" required /></div>
+  <div class="form-group"><label>Date required by</label><input type="date" name="required_by" /></div>
+  <div class="form-group"><label>Additional notes</label><textarea name="notes" placeholder="Optional"></textarea></div>
+  <button type="submit" class="btn-submit">Submit request</button>
+</form></div>
+{% endblock %}

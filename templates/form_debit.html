@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Pre-Authorized Debit — Hutton{% endblock %}
+{% block content %}
+<h1>Pre-authorized debit</h1>
+<p class="subtitle">Set up automatic strata fee payments from your bank account.</p>
+<p style="font-size:.8rem; color:#8e8e93; margin-bottom:32px; border-left:2px solid #d1d1d6; padding-left:12px;">By submitting this form you authorize Hutton to debit your bank account for strata fee payments as determined by your strata corporation. You will receive confirmation once set up is complete.</p>
+<div class="card"><form method="post">
+  <div class="form-row">
+    <div class="form-group"><label>Owner name (as on bank account)</label><input type="text" name="name" required /></div>
+    <div class="form-group"><label>Unit number</label><input type="text" name="unit" required /></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Email address</label><input type="email" name="email" required /></div>
+    <div class="form-group"><label>Phone number</label><input type="tel" name="phone" required /></div>
+  </div>
+  <div class="form-group"><label>Building / Strata corporation</label><input type="text" name="building" required /></div>
+  <div class="form-group"><label>Financial institution name</label><input type="text" name="bank_name" required /></div>
+  <div class="form-row">
+    <div class="form-group"><label>Transit / Branch number</label><input type="text" name="transit" required /></div>
+    <div class="form-group"><label>Institution number</label><input type="text" name="institution" required /></div>
+  </div>
+  <div class="form-group"><label>Account number</label><input type="text" name="account" required /></div>
+  <div class="form-group">
+    <label>Preferred debit date</label>
+    <select name="debit_date">
+      <option value="1">1st of the month</option>
+      <option value="15">15th of the month</option>
+    </select>
+  </div>
+  <div class="form-group"><label>Additional notes</label><textarea name="notes" placeholder="Optional"></textarea></div>
+  <button type="submit" class="btn-submit">Authorize pre-authorized debit</button>
+</form></div>
+{% endblock %}

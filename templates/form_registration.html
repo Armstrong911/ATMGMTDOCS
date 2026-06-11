@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Owner Registration — Hutton{% endblock %}
+{% block content %}
+<h1>Owner registration</h1>
+<p class="subtitle">Register as a new strata owner with Hutton.</p>
+<p style="font-size:.8rem; color:#8e8e93; margin-bottom:32px; border-left:2px solid #d1d1d6; padding-left:12px;">Your email address will be used to notify you when any work is being done in your building, including window cleaning, roof inspections, and other maintenance. It will not be used for any other purpose.</p>
+<div class="card"><form method="post">
+  <div class="form-row">
+    <div class="form-group"><label>First name</label><input type="text" name="first_name" required /></div>
+    <div class="form-group"><label>Last name</label><input type="text" name="last_name" required /></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Email address</label><input type="email" name="email" required /></div>
+    <div class="form-group"><label>Phone number</label><input type="tel" name="phone" required /></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Unit number</label><input type="text" name="unit" required /></div>
+    <div class="form-group"><label>Date of purchase</label><input type="date" name="purchase_date" /></div>
+  </div>
+  <div class="form-group"><label>Building / Strata corporation</label><input type="text" name="building" required /></div>
+  <div class="form-group"><label>Mailing address (if different from unit)</label><input type="text" name="mailing_address" /></div>
+  <div class="form-group">
+    <label>Are you renting out your unit?</label>
+    <select name="renting">
+      <option value="no">No — I will occupy the unit</option>
+      <option value="yes">Yes — I have or plan to have a tenant</option>
+    </select>
+  </div>
+  <div class="form-group"><label>Additional notes</label><textarea name="notes" placeholder="Optional"></textarea></div>
+  <button type="submit" class="btn-submit">Submit registration</button>
+</form></div>
+{% endblock %}

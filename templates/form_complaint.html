@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Bylaw Complaint — Hutton{% endblock %}
+{% block content %}
+<h1>Bylaw & rule violation complaint</h1>
+<p class="subtitle">File a complaint regarding a bylaw or rule violation in your strata corporation.</p>
+<div class="card"><form method="post">
+  <div class="form-row">
+    <div class="form-group"><label>Your name</label><input type="text" name="name" required /></div>
+    <div class="form-group"><label>Unit number</label><input type="text" name="unit" required /></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Email address</label><input type="email" name="email" required /></div>
+    <div class="form-group"><label>Phone number</label><input type="tel" name="phone" /></div>
+  </div>
+  <div class="form-group"><label>Building / Strata corporation</label><input type="text" name="building" required /></div>
+  <div class="form-group"><label>Unit or area where violation occurred</label><input type="text" name="violation_location" required /></div>
+  <div class="form-group"><label>Date(s) of violation</label><input type="text" name="violation_date" placeholder="e.g. June 10, 2026 or ongoing" required /></div>
+  <div class="form-group"><label>Description of violation</label><textarea name="description" required placeholder="Describe the bylaw or rule being violated and what occurred"></textarea></div>
+  <div class="form-group"><label>Bylaw or rule number (if known)</label><input type="text" name="bylaw_number" /></div>
+  <div class="form-group"><label>Any supporting details or witnesses</label><textarea name="supporting_details" placeholder="Optional"></textarea></div>
+  <button type="submit" class="btn-submit">Submit complaint</button>
+</form></div>
+{% endblock %}

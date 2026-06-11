@@ -1,591 +1,175 @@
-import os
-import uuid
-from datetime import datetime, timedelta
-from functools import wraps
-
-from flask import (Flask, render_template, request, redirect, url_for,
-                   flash, send_from_directory, abort, session)
-from flask_sqlalchemy import SQLAlchemy
-import resend
-from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
-
-# ---------------------------------------------------------------------------
-# App setup
-# ---------------------------------------------------------------------------
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+import os, json
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'change-me-in-production')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(BASE_DIR, 'dochost.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = os.path.join(BASE_DIR, 'uploads')
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB
 
-# Mail config — set these as Railway environment variables
-app.config['MAIL_SERVER']   = os.environ.get('MAIL_SERVER',   'smtp.gmail.com')
-app.config['MAIL_PORT']     = int(os.environ.get('MAIL_PORT', 465))
-app.config['MAIL_USE_TLS']  = os.environ.get('MAIL_USE_TLS',  'false').lower() == 'true'
-app.config['MAIL_USE_SSL']  = os.environ.get('MAIL_USE_SSL',  'true').lower()  == 'true'
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get(
-    'MAIL_DEFAULT_SENDER',
-    os.environ.get('MAIL_USERNAME', 'noreply@huttonstrata.com')
-)
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
+PORTAL_URL        = os.environ.get('PORTAL_URL', '#')
+RESEND_API_KEY    = os.environ.get('RESEND_API_KEY', '')
+NOTIFY_EMAIL      = os.environ.get('NOTIFY_EMAIL', 'admin@huttonstrata.com')
+MAIL_FROM         = os.environ.get('MAIL_FROM', 'Hutton <onboarding@resend.dev>')
 
-ALLOWED_EXTENSIONS = {'pdf'}
-NOTICE_EXPIRY_DAYS = 45
+DESTINATIONS = [
+    {"name": "Services",                 "url": "/services",      "description": "What Hutton offers, strata management services"},
+    {"name": "FAQ",                      "url": "/faq",           "description": "Frequently asked questions about strata living"},
+    {"name": "Contact",                  "url": "/contact",       "description": "Contact Hutton — phone, email, office hours, address"},
+    {"name": "Maintenance Request",      "url": "/forms/maintenance",  "description": "Submit a maintenance or repair request"},
+    {"name": "Owner Registration",       "url": "/forms/registration", "description": "Register as a new strata owner"},
+    {"name": "Bylaw Complaint",          "url": "/forms/complaint",    "description": "File a bylaw or rule violation complaint"},
+    {"name": "Pre-Authorized Debit",     "url": "/forms/debit",        "description": "Set up automatic strata fee payments"},
+    {"name": "Realtor Document Request", "url": "/forms/realtor",      "description": "Realtors requesting Form B or strata documents"},
+    {"name": "Legal Document Request",   "url": "/forms/legal",        "description": "Request Form F/B for legal or ownership changes"},
+    {"name": "Form K",                   "url": "/forms/form-k",       "description": "Tenant notification form — renting out your unit"},
+    {"name": "Strata Documents Request", "url": "/forms/strata-docs",  "description": "Request general strata corporation documents"},
+    {"name": "Client Portal",            "url": PORTAL_URL,            "description": "Owner and staff login to access strata documents"},
+]
 
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-db = SQLAlchemy(app)
-resend.api_key = os.environ.get('RESEND_API_KEY', '')
-MAIL_FROM = os.environ.get('MAIL_FROM', 'Hutton Portal <onboarding@resend.dev>')
-
-# ---------------------------------------------------------------------------
-# Models
-# ---------------------------------------------------------------------------
-
-user_buildings = db.Table('user_buildings',
-    db.Column('user_id',     db.Integer, db.ForeignKey('user.id'),     primary_key=True),
-    db.Column('building_id', db.Integer, db.ForeignKey('building.id'), primary_key=True),
-)
-
-
-class Building(db.Model):
-    id         = db.Column(db.Integer, primary_key=True)
-    name       = db.Column(db.String(255), nullable=False)
-    address    = db.Column(db.String(255), default='')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    documents  = db.relationship('Document', backref='building', lazy=True)
-    notices    = db.relationship('Notice',   backref='building', lazy=True)
-    members    = db.relationship('User', secondary=user_buildings, back_populates='buildings')
-
-
-class User(db.Model):
-    id         = db.Column(db.Integer, primary_key=True)
-    name       = db.Column(db.String(120), nullable=False)
-    email      = db.Column(db.String(255), unique=True, nullable=False)
-    password   = db.Column(db.String(255), nullable=False)
-    role       = db.Column(db.String(20),  nullable=False, default='viewer')
-    # roles: admin | editor | viewer | contractor
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    documents  = db.relationship('Document', backref='uploader', lazy=True)
-    notices    = db.relationship('Notice',   backref='poster',   lazy=True)
-    buildings  = db.relationship('Building', secondary=user_buildings, back_populates='members')
-
-
-class Document(db.Model):
-    id            = db.Column(db.Integer, primary_key=True)
-    title         = db.Column(db.String(255), nullable=False)
-    description   = db.Column(db.Text, default='')
-    filename      = db.Column(db.String(255), nullable=False)
-    original_name = db.Column(db.String(255), nullable=False)
-    min_role      = db.Column(db.String(20),  nullable=False, default='viewer')
-    building_id   = db.Column(db.Integer, db.ForeignKey('building.id'), nullable=True)
-    uploaded_by   = db.Column(db.Integer, db.ForeignKey('user.id'),     nullable=False)
-    uploaded_at   = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class Notice(db.Model):
-    id          = db.Column(db.Integer, primary_key=True)
-    title       = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.Text, default='')
-    work_date   = db.Column(db.String(100), default='')   # free-text date / date range
-    building_id = db.Column(db.Integer, db.ForeignKey('building.id'), nullable=False)
-    posted_by   = db.Column(db.Integer, db.ForeignKey('user.id'),     nullable=False)
-    posted_at   = db.Column(db.DateTime, default=datetime.utcnow)
-    expires_at  = db.Column(db.DateTime, nullable=False)  # posted_at + 45 days
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-ROLE_RANK = {'viewer': 1, 'editor': 2, 'admin': 3, 'contractor': 0}
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def current_user():
-    uid = session.get('user_id')
-    if uid:
-        return db.session.get(User, uid)
-    return None
-
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not current_user():
-            flash('Please log in to continue.', 'warning')
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated
-
-def role_required(*roles):
-    def decorator(f):
-        @wraps(f)
-        def decorated(*args, **kwargs):
-            user = current_user()
-            if not user or user.role not in roles:
-                abort(403)
-            return f(*args, **kwargs)
-        return decorated
-    return decorator
-
-def can_access_doc(user, doc):
-    if user.role in ('admin', 'editor'):
-        return True
-    if user.role == 'contractor':
-        return False
-    # Viewer
-    if ROLE_RANK.get(user.role, 0) < ROLE_RANK.get(doc.min_role, 1):
-        return False
-    if doc.building_id is None:
-        return False
-    return any(b.id == doc.building_id for b in user.buildings)
-
-def purge_expired_notices():
-    """Delete notices older than 45 days. Called on each page load."""
-    expired = Notice.query.filter(Notice.expires_at <= datetime.utcnow()).all()
-    for n in expired:
-        db.session.delete(n)
-    if expired:
-        db.session.commit()
-
-def send_notice_emails(notice, building):
-    """Email all viewer members of the building about a new contractor notice."""
-    if not resend.api_key:
-        return  # email not configured — skip silently
-    recipients = [u.email for u in building.members if u.role == 'viewer' and u.email]
-    if not recipients:
+def send_email(subject, body):
+    if not RESEND_API_KEY:
+        app.logger.info(f"Email (not sent — no API key): {subject}")
         return
-    subject = f"[{building.name}] Work Notice: {notice.title}"
-    body = f"""Hello,
-
-A new work notice has been posted for {building.name}.
-
-Notice: {notice.title}
-Date of Work: {notice.work_date or 'See description'}
-Details: {notice.description or 'No additional details provided.'}
-
-Posted: {notice.posted_at.strftime('%B %d, %Y at %I:%M %p')}
-
-This notice will be automatically removed after {NOTICE_EXPIRY_DAYS} days.
-
----
-Hutton Condominium Services Ltd.
-This email was sent because you are a registered owner at {building.name}.
-Your email address is used solely to notify you of work being performed in your building.
-"""
     try:
-        for recipient in recipients:
-            resend.Emails.send({
-                "from": MAIL_FROM,
-                "to": recipient,
-                "subject": subject,
-                "text": body,
-            })
+        import resend
+        resend.api_key = RESEND_API_KEY
+        resend.Emails.send({"from": MAIL_FROM, "to": NOTIFY_EMAIL, "subject": subject, "text": body})
     except Exception as e:
-        app.logger.warning(f"Email send failed: {e}")
+        app.logger.warning(f"Email failed: {e}")
 
-@app.context_processor
-def inject_user():
-    return dict(user=current_user(), role_rank=ROLE_RANK)
+def form_body(form_name, data):
+    lines = [f"New {form_name} submission from huttonstrata.com\n"]
+    for k, v in data.items():
+        lines.append(f"{k.replace('_',' ').title()}: {v}")
+    return "\n".join(lines)
 
 # ---------------------------------------------------------------------------
-# Auth routes
+# Main pages
 # ---------------------------------------------------------------------------
 @app.route('/')
-def index():
-    user = current_user()
-    if not user:
-        return redirect(url_for('login'))
-    if user.role == 'contractor':
-        return redirect(url_for('contractor_dashboard'))
-    return redirect(url_for('dashboard'))
+def home():
+    return render_template('home.html', portal_url=PORTAL_URL)
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if current_user():
-        return redirect(url_for('index'))
+@app.route('/services')
+def services():
+    return render_template('services.html')
+
+@app.route('/faq')
+def faq():
+    return render_template('faq.html')
+
+@app.route('/contact', methods=['GET', 'POST'])
+def contact():
     if request.method == 'POST':
-        email    = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-        user = User.query.filter_by(email=email).first()
-        if user and check_password_hash(user.password, password):
-            session['user_id'] = user.id
-            if user.role == 'contractor':
-                return redirect(url_for('contractor_dashboard'))
-            return redirect(url_for('dashboard'))
-        flash('Invalid email or password.', 'danger')
-    return render_template('login.html')
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
+        data = {k: v for k, v in request.form.items()}
+        send_email(f"Contact message from {data.get('name','')}: {data.get('subject','')}", form_body("Contact", data))
+        return render_template('contact.html', sent=True)
+    return render_template('contact.html', sent=False)
 
 # ---------------------------------------------------------------------------
-# Dashboard (staff + viewers)
+# AI routing
 # ---------------------------------------------------------------------------
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    user = current_user()
-    if user.role == 'contractor':
-        return redirect(url_for('contractor_dashboard'))
-    purge_expired_notices()
-    if user.role in ('admin', 'editor'):
-        buildings        = Building.query.order_by(Building.name).all()
-        selected_bid     = request.args.get('building', type=int)
-        if selected_bid:
-            docs              = Document.query.filter_by(building_id=selected_bid)\
-                                              .order_by(Document.uploaded_at.desc()).all()
-            notices           = Notice.query.filter_by(building_id=selected_bid)\
-                                            .order_by(Notice.posted_at.desc()).all()
-            selected_building = db.session.get(Building, selected_bid)
-        else:
-            docs              = Document.query.order_by(Document.uploaded_at.desc()).all()
-            notices           = Notice.query.order_by(Notice.posted_at.desc()).all()
-            selected_building = None
-        return render_template('dashboard.html', documents=docs, notices=notices,
-                               buildings=buildings, selected_building=selected_building)
-    else:
-        my_building_ids = [b.id for b in user.buildings]
-        docs = Document.query.filter(
-            Document.building_id.in_(my_building_ids)
-        ).order_by(Document.uploaded_at.desc()).all()
-        accessible = [d for d in docs if can_access_doc(user, d)]
-        notices = Notice.query.filter(
-            Notice.building_id.in_(my_building_ids)
-        ).order_by(Notice.posted_at.desc()).all()
-        return render_template('dashboard.html', documents=accessible, notices=notices,
-                               buildings=user.buildings, selected_building=None)
+@app.route('/ask', methods=['POST'])
+def ask():
+    query = request.json.get('query', '').strip()
+    if not query:
+        return jsonify({'error': 'No query'}), 400
+    if ANTHROPIC_API_KEY:
+        return _ai_route(query)
+    return _fallback_route(query)
 
-# ---------------------------------------------------------------------------
-# Contractor portal
-# ---------------------------------------------------------------------------
-@app.route('/contractor', methods=['GET', 'POST'])
-@login_required
-@role_required('contractor', 'admin', 'editor')
-def contractor_dashboard():
-    user      = current_user()
-    purge_expired_notices()
-
-    # Contractors only see their assigned buildings; staff see all
-    if user.role in ('admin', 'editor'):
-        buildings = Building.query.order_by(Building.name).all()
-    else:
-        buildings = user.buildings
-
-    if request.method == 'POST':
-        title       = request.form.get('title', '').strip()
-        description = request.form.get('description', '').strip()
-        work_date   = request.form.get('work_date', '').strip()
-        building_id = request.form.get('building_id', type=int)
-
-        if not title or not building_id:
-            flash('Notice title and building are required.', 'danger')
-            return redirect(url_for('contractor_dashboard'))
-
-        building = db.session.get(Building, building_id)
-        if not building:
-            abort(404)
-
-        # Contractors can only post to their assigned buildings
-        if user.role == 'contractor' and building not in user.buildings:
-            abort(403)
-
-        notice = Notice(
-            title=title,
-            description=description,
-            work_date=work_date,
-            building_id=building_id,
-            posted_by=user.id,
-            expires_at=datetime.utcnow() + timedelta(days=NOTICE_EXPIRY_DAYS),
-        )
-        db.session.add(notice)
-        db.session.commit()
-
-        send_notice_emails(notice, building)
-        flash(f'Notice posted. All owners at {building.name} have been notified by email.', 'success')
-        return redirect(url_for('contractor_dashboard'))
-
-    # Show recent notices for this contractor's buildings
-    if user.role in ('admin', 'editor'):
-        recent_notices = Notice.query.order_by(Notice.posted_at.desc()).limit(50).all()
-    else:
-        bids = [b.id for b in buildings]
-        recent_notices = Notice.query.filter(Notice.building_id.in_(bids))\
-                                     .order_by(Notice.posted_at.desc()).all()
-
-    return render_template('contractor_dashboard.html',
-                           buildings=buildings, notices=recent_notices)
-
-@app.route('/notices/<int:notice_id>/delete', methods=['POST'])
-@login_required
-@role_required('admin')
-def delete_notice(notice_id):
-    notice = Notice.query.get_or_404(notice_id)
-    db.session.delete(notice)
-    db.session.commit()
-    flash('Notice deleted.', 'success')
-    return redirect(request.referrer or url_for('dashboard'))
-
-# ---------------------------------------------------------------------------
-# Documents
-# ---------------------------------------------------------------------------
-@app.route('/upload', methods=['GET', 'POST'])
-@login_required
-@role_required('admin', 'editor')
-def upload():
-    buildings = Building.query.order_by(Building.name).all()
-    if request.method == 'POST':
-        title       = request.form.get('title', '').strip()
-        description = request.form.get('description', '').strip()
-        min_role    = request.form.get('min_role', 'viewer')
-        building_id = request.form.get('building_id', type=int)
-        file        = request.files.get('file')
-
-        if not title:
-            flash('Title is required.', 'danger')
-            return redirect(url_for('upload'))
-        if not file or file.filename == '':
-            flash('Please select a PDF file.', 'danger')
-            return redirect(url_for('upload'))
-        if not allowed_file(file.filename):
-            flash('Only PDF files are allowed.', 'danger')
-            return redirect(url_for('upload'))
-
-        user = current_user()
-        if ROLE_RANK.get(min_role, 0) > ROLE_RANK.get(user.role, 0):
-            min_role = user.role
-
-        original_name = secure_filename(file.filename)
-        stored_name   = str(uuid.uuid4()) + '.pdf'
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], stored_name))
-
-        doc = Document(
-            title=title, description=description,
-            filename=stored_name, original_name=original_name,
-            min_role=min_role, building_id=building_id or None,
-            uploaded_by=user.id,
-        )
-        db.session.add(doc)
-        db.session.commit()
-        flash(f'"{title}" uploaded successfully.', 'success')
-        return redirect(url_for('dashboard'))
-
-    return render_template('upload.html', buildings=buildings)
-
-@app.route('/docs/<int:doc_id>/view')
-@login_required
-def view_doc(doc_id):
-    doc  = Document.query.get_or_404(doc_id)
-    user = current_user()
-    if not can_access_doc(user, doc):
-        abort(403)
-    return render_template('view_doc.html', doc=doc)
-
-@app.route('/docs/<int:doc_id>/download')
-@login_required
-def download_doc(doc_id):
-    doc  = Document.query.get_or_404(doc_id)
-    user = current_user()
-    if not can_access_doc(user, doc):
-        abort(403)
-    return send_from_directory(app.config['UPLOAD_FOLDER'], doc.filename,
-                               as_attachment=True, download_name=doc.original_name)
-
-@app.route('/docs/<int:doc_id>/file')
-@login_required
-def serve_doc(doc_id):
-    doc  = Document.query.get_or_404(doc_id)
-    user = current_user()
-    if not can_access_doc(user, doc):
-        abort(403)
-    return send_from_directory(app.config['UPLOAD_FOLDER'], doc.filename)
-
-@app.route('/docs/<int:doc_id>/delete', methods=['POST'])
-@login_required
-@role_required('admin', 'editor')
-def delete_doc(doc_id):
-    doc  = Document.query.get_or_404(doc_id)
-    user = current_user()
-    if user.role == 'editor' and doc.uploaded_by != user.id:
-        abort(403)
+def _ai_route(query):
     try:
-        os.remove(os.path.join(app.config['UPLOAD_FOLDER'], doc.filename))
-    except FileNotFoundError:
-        pass
-    db.session.delete(doc)
-    db.session.commit()
-    flash(f'"{doc.title}" deleted.', 'success')
-    return redirect(url_for('dashboard'))
+        import anthropic
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        caps = "\n".join(f"- {d['name']}: {d['description']} → {d['url']}" for d in DESTINATIONS)
+        system = f"""You are the assistant for Hutton, a strata property management company in Victoria, BC.
+Direct visitors to the right page based on what they need.
+
+Available pages:
+{caps}
+
+Reply with JSON only:
+{{"message": "One short friendly sentence.", "destination_name": "Name", "url": "exact URL", "confidence": "high|medium|low"}}
+
+If unrelated to strata, reply:
+{{"message": "I can help with strata questions, forms, documents, and getting in touch with Hutton. What do you need?", "destination_name": null, "url": null, "confidence": "low"}}"""
+        r = client.messages.create(model="claude-haiku-4-5-20251001", max_tokens=200, system=system,
+                                    messages=[{"role": "user", "content": query}])
+        return jsonify(json.loads(r.content[0].text))
+    except Exception as e:
+        app.logger.warning(f"AI routing failed: {e}")
+        return _fallback_route(query)
+
+def _fallback_route(query):
+    q = query.lower()
+    kw = {
+        "maintenance": "Maintenance Request", "repair": "Maintenance Request", "broken": "Maintenance Request",
+        "complaint": "Bylaw Complaint", "bylaw": "Bylaw Complaint", "noise": "Bylaw Complaint",
+        "register": "Owner Registration", "new owner": "Owner Registration",
+        "payment": "Pre-Authorized Debit", "debit": "Pre-Authorized Debit", "fees": "Pre-Authorized Debit",
+        "realtor": "Realtor Document Request", "form b": "Realtor Document Request",
+        "legal": "Legal Document Request", "form f": "Legal Document Request",
+        "form k": "Form K", "tenant": "Form K",
+        "strata documents": "Strata Documents Request", "minutes": "Strata Documents Request",
+        "contact": "Contact", "phone": "Contact", "hours": "Contact",
+        "faq": "FAQ", "question": "FAQ",
+        "service": "Services", "manage": "Services",
+        "portal": "Client Portal", "login": "Client Portal",
+    }
+    dest = {d['name']: d for d in DESTINATIONS}
+    best, best_score = None, 0
+    for keyword, name in kw.items():
+        if keyword in q and name in dest:
+            score = len(keyword)
+            if score > best_score:
+                best_score, best = score, dest[name]
+    if best:
+        return jsonify({"message": "Here's where you need to go.", "destination_name": best['name'], "url": best['url'], "confidence": "medium"})
+    return jsonify({"message": "I can help with strata questions, forms, documents, and getting in touch with Hutton. What do you need?", "destination_name": None, "url": None, "confidence": "low"})
 
 # ---------------------------------------------------------------------------
-# Admin — Buildings
+# Forms
 # ---------------------------------------------------------------------------
-@app.route('/admin/buildings')
-@login_required
-@role_required('admin')
-def admin_buildings():
-    buildings = Building.query.order_by(Building.name).all()
-    return render_template('admin_buildings.html', buildings=buildings)
-
-@app.route('/admin/buildings/new', methods=['GET', 'POST'])
-@login_required
-@role_required('admin')
-def admin_new_building():
+def handle_form(template, form_name, subject_field=None):
     if request.method == 'POST':
-        name    = request.form.get('name', '').strip()
-        address = request.form.get('address', '').strip()
-        if not name:
-            flash('Building name is required.', 'danger')
-            return redirect(url_for('admin_new_building'))
-        b = Building(name=name, address=address)
-        db.session.add(b)
-        db.session.commit()
-        flash(f'Building "{name}" added.', 'success')
-        return redirect(url_for('admin_buildings'))
-    return render_template('admin_new_building.html')
+        data = {k: v for k, v in request.form.items()}
+        subj = f"New {form_name}"
+        if subject_field and subject_field in data:
+            subj += f" — {data[subject_field]}"
+        send_email(subj, form_body(form_name, data))
+        return render_template('success.html',
+            title="Submitted",
+            message=f"Your {form_name.lower()} has been received. We'll be in touch shortly.")
+    return render_template(template)
 
-@app.route('/admin/buildings/<int:building_id>/edit', methods=['GET', 'POST'])
-@login_required
-@role_required('admin')
-def admin_edit_building(building_id):
-    b = Building.query.get_or_404(building_id)
-    if request.method == 'POST':
-        b.name    = request.form.get('name', b.name).strip()
-        b.address = request.form.get('address', b.address).strip()
-        db.session.commit()
-        flash(f'Building "{b.name}" updated.', 'success')
-        return redirect(url_for('admin_buildings'))
-    return render_template('admin_edit_building.html', building=b)
+@app.route('/forms/maintenance',  methods=['GET','POST'])
+def form_maintenance():  return handle_form('form_maintenance.html',  'Maintenance Request', 'building')
 
-@app.route('/admin/buildings/<int:building_id>/delete', methods=['POST'])
-@login_required
-@role_required('admin')
-def admin_delete_building(building_id):
-    b = Building.query.get_or_404(building_id)
-    if b.documents:
-        flash(f'Cannot delete "{b.name}" — it has documents. Remove them first.', 'danger')
-        return redirect(url_for('admin_buildings'))
-    db.session.delete(b)
-    db.session.commit()
-    flash(f'Building "{b.name}" deleted.', 'success')
-    return redirect(url_for('admin_buildings'))
+@app.route('/forms/complaint',    methods=['GET','POST'])
+def form_complaint():    return handle_form('form_complaint.html',    'Bylaw Complaint', 'building')
 
-# ---------------------------------------------------------------------------
-# Admin — Users
-# ---------------------------------------------------------------------------
-@app.route('/admin/users')
-@login_required
-@role_required('admin')
-def admin_users():
-    users = User.query.order_by(User.name).all()
-    return render_template('admin_users.html', users=users)
+@app.route('/forms/registration', methods=['GET','POST'])
+def form_registration(): return handle_form('form_registration.html', 'Owner Registration', 'building')
 
-@app.route('/admin/users/new', methods=['GET', 'POST'])
-@login_required
-@role_required('admin')
-def admin_new_user():
-    buildings = Building.query.order_by(Building.name).all()
-    if request.method == 'POST':
-        name     = request.form.get('name', '').strip()
-        email    = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-        role     = request.form.get('role', 'viewer')
-        bids     = request.form.getlist('building_ids', type=int)
+@app.route('/forms/realtor',      methods=['GET','POST'])
+def form_realtor():      return handle_form('form_realtor.html',      'Realtor Document Request', 'building')
 
-        if not name or not email or not password:
-            flash('All fields are required.', 'danger')
-            return redirect(url_for('admin_new_user'))
-        if User.query.filter_by(email=email).first():
-            flash('A user with that email already exists.', 'danger')
-            return redirect(url_for('admin_new_user'))
+@app.route('/forms/lender',       methods=['GET','POST'])
+def form_lender():       return handle_form('form_lender.html',       'Lender Information Request', 'building')
 
-        user = User(name=name, email=email,
-                    password=generate_password_hash(password), role=role)
-        if role in ('viewer', 'contractor') and bids:
-            user.buildings = Building.query.filter(Building.id.in_(bids)).all()
-        db.session.add(user)
-        db.session.commit()
-        flash(f'User "{name}" created.', 'success')
-        return redirect(url_for('admin_users'))
+@app.route('/forms/legal',        methods=['GET','POST'])
+def form_legal():        return handle_form('form_legal.html',        'Legal Document Request', 'building')
 
-    return render_template('admin_new_user.html', buildings=buildings)
+@app.route('/forms/strata-docs',  methods=['GET','POST'])
+def form_strata_docs():  return handle_form('form_strata_docs.html',  'Strata Documents Request', 'building')
 
-@app.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
-@login_required
-@role_required('admin')
-def admin_edit_user(user_id):
-    target    = User.query.get_or_404(user_id)
-    buildings = Building.query.order_by(Building.name).all()
-    if request.method == 'POST':
-        target.name  = request.form.get('name', target.name).strip()
-        target.email = request.form.get('email', target.email).strip().lower()
-        target.role  = request.form.get('role', target.role)
-        new_password = request.form.get('password', '').strip()
-        if new_password:
-            target.password = generate_password_hash(new_password)
-        bids = request.form.getlist('building_ids', type=int)
-        if target.role in ('viewer', 'contractor'):
-            target.buildings = Building.query.filter(Building.id.in_(bids)).all()
-        else:
-            target.buildings = []
-        db.session.commit()
-        flash(f'User "{target.name}" updated.', 'success')
-        return redirect(url_for('admin_users'))
-    return render_template('admin_edit_user.html', target=target, buildings=buildings)
+@app.route('/forms/debit',        methods=['GET','POST'])
+def form_debit():        return handle_form('form_debit.html',        'Pre-Authorized Debit', 'building')
 
-@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
-@login_required
-@role_required('admin')
-def admin_delete_user(user_id):
-    me = current_user()
-    if me.id == user_id:
-        flash("You can't delete your own account.", 'danger')
-        return redirect(url_for('admin_users'))
-    target = User.query.get_or_404(user_id)
-    db.session.delete(target)
-    db.session.commit()
-    flash(f'User "{target.name}" deleted.', 'success')
-    return redirect(url_for('admin_users'))
+@app.route('/forms/form-k',       methods=['GET','POST'])
+def form_k():            return handle_form('form_k.html',            'Form K', 'building')
 
 # ---------------------------------------------------------------------------
-# Error pages
-# ---------------------------------------------------------------------------
-@app.errorhandler(403)
-def forbidden(e):
-    return render_template('error.html', code=403,
-                           message="You don't have permission to access this page."), 403
-
-@app.errorhandler(404)
-def not_found(e):
-    return render_template('error.html', code=404,
-                           message="Page or document not found."), 404
-
-# ---------------------------------------------------------------------------
-# Init DB + default admin
-# ---------------------------------------------------------------------------
-def init_db():
-    with app.app_context():
-        db.create_all()
-        if not User.query.filter_by(email='admin@example.com').first():
-            admin = User(
-                name='Admin',
-                email='admin@example.com',
-                password=generate_password_hash('admin123'),
-                role='admin',
-            )
-            db.session.add(admin)
-            db.session.commit()
-            print("Default admin created: admin@example.com / admin123")
-            print("IMPORTANT: Change this password immediately after first login!")
-
 if __name__ == '__main__':
-    init_db()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)

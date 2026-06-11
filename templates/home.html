@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Hutton</title>
+  <link href="https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%; width: 100%;
+      background: #fff;
+      font-family: 'PT Serif', Georgia, serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 48px 24px;
+      gap: 40px;
+    }
+    .logo-wrap {
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+      opacity: 0;
+      animation: logoIn 1s ease 0.1s forwards;
+    }
+    .logo-wrap img {
+      width: 100%;
+      max-width: 600px;
+      filter: brightness(0);
+      display: block;
+    }
+    .logo-text {
+      display: none;
+      font-size: 4rem;
+      font-weight: 700;
+      color: #1d1d1f;
+      letter-spacing: .05em;
+    }
+    .prompt {
+      color: rgba(0,0,0,0);
+      font-size: clamp(1rem, 3.5vw, 1.25rem);
+      animation: labelFade 0.8s ease 1.2s forwards;
+      letter-spacing: .01em;
+    }
+    .input-wrap {
+      width: 100%;
+      max-width: 460px;
+      position: relative;
+      height: 54px;
+    }
+    canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+    }
+    .input-box {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: #fafafa;
+      border: 1px solid rgba(0,0,0,0.12);
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px 0 16px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .input-box input {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-family: 'PT Serif', Georgia, serif;
+      font-size: .95rem;
+      color: #1d1d1f;
+      caret-color: #1d1d1f;
+    }
+    .input-box input::placeholder { color: rgba(0,0,0,0.3); }
+    .input-box button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.1rem;
+      color: rgba(0,0,0,0.4);
+      padding: 4px 6px;
+      line-height: 1;
+      transition: color 0.2s;
+      flex-shrink: 0;
+    }
+    .input-box button:hover { color: #1d1d1f; }
+    .result {
+      width: 100%;
+      max-width: 460px;
+      font-size: .88rem;
+      color: #6e6e73;
+      line-height: 1.6;
+      min-height: 20px;
+      text-align: center;
+    }
+    .result a {
+      color: #1d1d1f;
+      border-bottom: 1px solid #d1d1d6;
+      padding-bottom: 1px;
+      text-decoration: none;
+      margin-left: 4px;
+    }
+    .result a:hover { border-color: #1d1d1f; }
+    @keyframes logoIn    { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes labelFade { from{opacity:0;transform:translateY(4px);color:rgba(0,0,0,0)} to{opacity:1;transform:translateY(0);color:rgba(0,0,0,0.82)} }
+  </style>
+</head>
+<body>
+
+  <div class="logo-wrap">
+    <img src="https://huttonpropertymanagement.com/wp-content/uploads/Hutton-Word-Smaller.png"
+         alt="Hutton"
+         onerror="this.style.display='none'; document.getElementById('lt').style.display='block';" />
+    <span id="lt" class="logo-text">Hutton</span>
+  </div>
+
+  <div class="prompt">How can we help you today?</div>
+
+  <div class="input-wrap">
+    <canvas id="wcanvas"></canvas>
+    <div class="input-box" id="wbox">
+      <input type="text" id="query" placeholder="Type what you're looking for…"
+             autocomplete="off" autocorrect="off" spellcheck="false" />
+      <button onclick="sendQuery()" aria-label="Search">→</button>
+    </div>
+  </div>
+
+  <div class="result" id="result"></div>
+
+<script>
+const canvas  = document.getElementById('wcanvas');
+const ctx     = canvas.getContext('2d');
+const wbox    = document.getElementById('wbox');
+const queryEl = document.getElementById('query');
+const resultEl = document.getElementById('result');
+
+const DURATION = 2280, N = 700;
+let particles = [], startTime = null, raf;
+
+function resize() {
+  canvas.width  = canvas.parentElement.offsetWidth  || 460;
+  canvas.height = canvas.parentElement.offsetHeight || 54;
+}
+
+function easeOut(t) { return 1 - Math.pow(1-t, 3); }
+
+function build() {
+  const w=canvas.width, h=canvas.height, p=2*(w+h);
+  particles = [];
+  for (let i=0; i<N; i++) {
+    const pos=(i/N)*p; let tx,ty;
+    if      (pos<w)       {tx=pos;         ty=0;}
+    else if (pos<w+h)     {tx=w;           ty=pos-w;}
+    else if (pos<2*w+h)   {tx=w-(pos-w-h); ty=h;}
+    else                  {tx=0;           ty=h-(pos-2*w-h);}
+    particles.push({x:(Math.random()-.5)*w*4+w/2,y:(Math.random()-.5)*h*8+h/2,tx,ty,s:Math.random()*.75+.15,d:Math.random()*.42});
+  }
+}
+
+function animate(ts) {
+  if (!startTime) startTime=ts;
+  const raw=Math.min((ts-startTime)/DURATION,1);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for (const p of particles) {
+    const lr=Math.max(0,Math.min((raw-p.d)/(1-p.d),1)), t=easeOut(lr);
+    ctx.fillStyle=`rgba(0,0,0,${0.05+t*.72})`;
+    ctx.fillRect(p.x+(p.tx-p.x)*t, p.y+(p.ty-p.y)*t, p.s, p.s);
+  }
+  if (raw<0.88) { raf=requestAnimationFrame(animate); }
+  else { ctx.clearRect(0,0,canvas.width,canvas.height); wbox.style.opacity='1'; queryEl.focus(); }
+}
+
+window.addEventListener('resize', resize);
+resize(); build();
+setTimeout(() => { raf=requestAnimationFrame(animate); }, 1400);
+
+queryEl.addEventListener('keydown', e => { if (e.key==='Enter') sendQuery(); });
+
+async function sendQuery() {
+  const q = queryEl.value.trim();
+  if (!q) return;
+  resultEl.textContent = 'Looking that up…';
+  try {
+    const res  = await fetch('/ask', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});
+    const data = await res.json();
+    resultEl.innerHTML = '';
+    if (data.message) resultEl.appendChild(document.createTextNode(data.message));
+    if (data.url) {
+      const a = document.createElement('a');
+      a.href = data.url;
+      a.textContent = (data.destination_name||'Go') + ' →';
+      if (data.url.startsWith('http')) a.target='_blank';
+      resultEl.appendChild(a);
+    }
+  } catch(e) {
+    resultEl.textContent = 'Something went wrong. Please try again.';
+  }
+}
+</script>
+</body>
+</html>
