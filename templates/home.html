@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <title>Hutton</title>
   <link href="https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet" />
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -19,25 +20,22 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      padding: 48px 24px;
-      gap: 40px;
+      padding: 60px 24px;
+      gap: 36px;
     }
     .logo-wrap {
-      width: 100%;
-      max-width: 600px;
-      text-align: center;
       opacity: 0;
-      animation: logoIn 1s ease 0.1s forwards;
+      animation: fadeDown 0.8s ease 0.2s forwards;
     }
     .logo-wrap img {
-      width: 100%;
-      max-width: 600px;
+      max-width: 270px;
+      width: 74vw;
       filter: brightness(0);
       display: block;
     }
     .logo-text {
       display: none;
-      font-size: 4rem;
+      font-size: 1.6rem;
       font-weight: 700;
       color: #1d1d1f;
       letter-spacing: .05em;
@@ -45,7 +43,7 @@
     .prompt {
       color: rgba(0,0,0,0);
       font-size: clamp(1rem, 3.5vw, 1.25rem);
-      animation: labelFade 0.8s ease 1.2s forwards;
+      animation: labelFade 0.8s ease 0.7s forwards;
       letter-spacing: .01em;
     }
     .input-wrap {
@@ -113,8 +111,8 @@
       margin-left: 4px;
     }
     .result a:hover { border-color: #1d1d1f; }
-    @keyframes logoIn    { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
-    @keyframes labelFade { from{opacity:0;transform:translateY(4px);color:rgba(0,0,0,0)} to{opacity:1;transform:translateY(0);color:rgba(0,0,0,0.82)} }
+    @keyframes fadeDown  { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes labelFade { from{opacity:0;transform:translateY(6px);color:rgba(0,0,0,0)} to{opacity:1;transform:translateY(0);color:rgba(0,0,0,0.8)} }
   </style>
 </head>
 <body>
@@ -140,13 +138,13 @@
   <div class="result" id="result"></div>
 
 <script>
-const canvas  = document.getElementById('wcanvas');
-const ctx     = canvas.getContext('2d');
-const wbox    = document.getElementById('wbox');
+const canvas = document.getElementById('wcanvas');
+const ctx    = canvas.getContext('2d');
+const wbox   = document.getElementById('wbox');
 const queryEl = document.getElementById('query');
 const resultEl = document.getElementById('result');
 
-const DURATION = 2280, N = 700;
+const DURATION = 2280, N = 300;
 let particles = [], startTime = null, raf;
 
 function resize() {
@@ -157,34 +155,36 @@ function resize() {
 function easeOut(t) { return 1 - Math.pow(1-t, 3); }
 
 function build() {
-  const w=canvas.width, h=canvas.height, p=2*(w+h);
+  const w = canvas.width, h = canvas.height, p = 2*(w+h);
   particles = [];
-  for (let i=0; i<N; i++) {
-    const pos=(i/N)*p; let tx,ty;
-    if      (pos<w)       {tx=pos;         ty=0;}
-    else if (pos<w+h)     {tx=w;           ty=pos-w;}
-    else if (pos<2*w+h)   {tx=w-(pos-w-h); ty=h;}
-    else                  {tx=0;           ty=h-(pos-2*w-h);}
-    particles.push({x:(Math.random()-.5)*w*4+w/2,y:(Math.random()-.5)*h*8+h/2,tx,ty,s:Math.random()*.75+.15,d:Math.random()*.42});
+  for (let i = 0; i < N; i++) {
+    const pos = (i/N)*p;
+    let tx, ty;
+    if      (pos < w)       { tx=pos;         ty=0; }
+    else if (pos < w+h)     { tx=w;           ty=pos-w; }
+    else if (pos < 2*w+h)   { tx=w-(pos-w-h); ty=h; }
+    else                    { tx=0;           ty=h-(pos-2*w-h); }
+    particles.push({ x:(Math.random()-.5)*w*3.5+w/2, y:(Math.random()-.5)*h*6+h/2, tx, ty, size:Math.random()*1.8+0.5, delay:Math.random()*0.4 });
   }
 }
 
 function animate(ts) {
-  if (!startTime) startTime=ts;
-  const raw=Math.min((ts-startTime)/DURATION,1);
+  if (!startTime) startTime = ts;
+  const raw = Math.min((ts-startTime)/DURATION, 1);
   ctx.clearRect(0,0,canvas.width,canvas.height);
   for (const p of particles) {
-    const lr=Math.max(0,Math.min((raw-p.d)/(1-p.d),1)), t=easeOut(lr);
-    ctx.fillStyle=`rgba(0,0,0,${0.05+t*.72})`;
-    ctx.fillRect(p.x+(p.tx-p.x)*t, p.y+(p.ty-p.y)*t, p.s, p.s);
+    const lr = Math.max(0, Math.min((raw-p.delay)/(1-p.delay),1));
+    const t  = easeOut(lr);
+    ctx.fillStyle = `rgba(0,0,0,${0.06+t*0.65})`;
+    ctx.fillRect(p.x+(p.tx-p.x)*t, p.y+(p.ty-p.y)*t, p.size, p.size);
   }
-  if (raw<0.88) { raf=requestAnimationFrame(animate); }
+  if (raw < 0.88) { raf = requestAnimationFrame(animate); }
   else { ctx.clearRect(0,0,canvas.width,canvas.height); wbox.style.opacity='1'; queryEl.focus(); }
 }
 
 window.addEventListener('resize', resize);
 resize(); build();
-setTimeout(() => { raf=requestAnimationFrame(animate); }, 1400);
+setTimeout(() => { raf = requestAnimationFrame(animate); }, 900);
 
 queryEl.addEventListener('keydown', e => { if (e.key==='Enter') sendQuery(); });
 
@@ -193,15 +193,15 @@ async function sendQuery() {
   if (!q) return;
   resultEl.textContent = 'Looking that up…';
   try {
-    const res  = await fetch('/ask', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q})});
+    const res  = await fetch('/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({query:q}) });
     const data = await res.json();
     resultEl.innerHTML = '';
     if (data.message) resultEl.appendChild(document.createTextNode(data.message));
     if (data.url) {
       const a = document.createElement('a');
       a.href = data.url;
-      a.textContent = (data.destination_name||'Go') + ' →';
-      if (data.url.startsWith('http')) a.target='_blank';
+      a.textContent = (data.destination_name || 'Go') + ' →';
+      if (data.url.startsWith('http')) a.target = '_blank';
       resultEl.appendChild(a);
     }
   } catch(e) {
